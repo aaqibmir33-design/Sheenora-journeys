@@ -504,6 +504,12 @@ export default function App() {
     customerEmail: '',
     customerPhone: '',
     panCard: '',
+    nationality: 'Indian' as 'Indian' | 'Foreign',
+    aadhaarNumber: '',
+    passportNumber: '',
+    hasInfants: false,
+    infantDetails: '',
+    otherTravelers: [] as { name: string; gender: string }[]
   });
 
   const [formSubmittedDetails, setFormSubmittedDetails] = useState<any | null>(null);
@@ -517,7 +523,13 @@ export default function App() {
     panCard: '',
     travelDate: '',
     guestsCount: 2,
-    customRequirements: ''
+    customRequirements: '',
+    nationality: 'Indian' as 'Indian' | 'Foreign',
+    aadhaarNumber: '',
+    passportNumber: '',
+    hasInfants: false,
+    infantDetails: '',
+    otherTravelers: [] as { name: string; gender: string }[]
   });
 
   // Razorpay Checkout Simulation Process
@@ -1069,9 +1081,72 @@ export default function App() {
 
   const handleCustomFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customForm.customerName || !customForm.customerEmail || !customForm.customerPhone) {
+    const { 
+      customerName, 
+      customerEmail, 
+      customerPhone, 
+      panCard, 
+      travelDate, 
+      guestsCount, 
+      customRequirements,
+      nationality,
+      aadhaarNumber,
+      passportNumber,
+      hasInfants,
+      infantDetails,
+      otherTravelers,
+      estimatedBudget,
+      destinations
+    } = customForm;
+
+    if (!customerName || !customerEmail || !customerPhone) {
       triggerNotification("Please fill in your name, email and contact phone number.", "error");
       return;
+    }
+
+    // National Identity Regulatory Checks for J&K Border Security Protocol
+    if (nationality === 'Indian') {
+      const cleanAadhaar = (aadhaarNumber || '').replace(/[\s-]/g, '');
+      if (!cleanAadhaar) {
+        triggerNotification("Primary traveler's Aadhaar Card is compulsory for Indian Nationals under J&K safety regulations.", "error");
+        return;
+      }
+      if (cleanAadhaar.length !== 12 || !/^\d+$/.test(cleanAadhaar)) {
+        triggerNotification("Invalid Aadhaar format. It must be a 12-digit number (e.g. 1234 5678 9012).", "error");
+        return;
+      }
+      if (guestsCount > 1) {
+        // Family booking: Validate names and genders for guestsCount - 1 extra travelers
+        for (let i = 0; i < guestsCount - 1; i++) {
+          const traveler = otherTravelers[i];
+          if (!traveler || !traveler.name || !traveler.name.trim()) {
+            triggerNotification(`Please provide the Full Name of Companion Traveler ${i + 2} in the family checklist.`, "error");
+            return;
+          }
+          if (!traveler.gender) {
+            triggerNotification(`Please specify the Gender of Companion Traveler ${i + 2}.`, "error");
+            return;
+          }
+        }
+      }
+    } else {
+      // Foreign National
+      if (!passportNumber || !passportNumber.trim()) {
+        triggerNotification("Primary traveler's Passport Number is compulsory for Foreign Nationals visiting J&K territory.", "error");
+        return;
+      }
+      if (passportNumber.trim().length < 5) {
+        triggerNotification("Please enter a valid Passport Number (must be at least 5 characters).", "error");
+        return;
+      }
+    }
+
+    // Infant Safety check
+    if (hasInfants) {
+      if (!infantDetails || !infantDetails.trim()) {
+        triggerNotification("Please let us know about the infants traveling with you in the infant details section, so we can prepare customized winter blankets & safety cribs.", "error");
+        return;
+      }
     }
 
     try {
@@ -1079,14 +1154,20 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerName: customForm.customerName,
-          customerEmail: customForm.customerEmail,
-          customerPhone: customForm.customerPhone,
-          panCard: customForm.panCard,
-          travelDate: customForm.travelDate,
-          guestsCount: customForm.guestsCount,
-          customRequirements: `Destinations: ${customForm.destinations.join(', ')}. Details: ${customForm.customRequirements}`,
-          estimatedBudget: customForm.estimatedBudget
+          customerName,
+          customerEmail,
+          customerPhone,
+          panCard,
+          travelDate,
+          guestsCount,
+          customRequirements: `Destinations: ${destinations.join(', ')}. Details: ${customRequirements}`,
+          estimatedBudget,
+          nationality,
+          aadhaarNumber,
+          passportNumber,
+          hasInfants,
+          infantDetails,
+          otherTravelers: otherTravelers.slice(0, guestsCount - 1)
         })
       });
 
@@ -1114,7 +1195,13 @@ export default function App() {
       panCard: '',
       travelDate: '',
       guestsCount: 2,
-      customRequirements: ''
+      customRequirements: '',
+      nationality: 'Indian',
+      aadhaarNumber: '',
+      passportNumber: '',
+      hasInfants: false,
+      infantDetails: '',
+      otherTravelers: []
     });
     setPaymentStep('Idle');
     setPaymentLog([]);
@@ -1122,7 +1209,21 @@ export default function App() {
 
   const handleLiveRazorpayPaymentSimulation = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { customerName, customerEmail, customerPhone, panCard, travelDate, guestsCount, customRequirements } = checkoutForm;
+    const { 
+      customerName, 
+      customerEmail, 
+      customerPhone, 
+      panCard, 
+      travelDate, 
+      guestsCount, 
+      customRequirements,
+      nationality,
+      aadhaarNumber,
+      passportNumber,
+      hasInfants,
+      infantDetails,
+      otherTravelers
+    } = checkoutForm;
     
     if (!customerName || !customerEmail || !customerPhone) {
       triggerNotification("Please provide key contact details for your reservation.", "error");
@@ -1140,10 +1241,55 @@ export default function App() {
       return;
     }
 
+    // National Identity Regulatory Checks for J&K Border Security Protocol
+    if (nationality === 'Indian') {
+      const cleanAadhaar = (aadhaarNumber || '').replace(/[\s-]/g, '');
+      if (!cleanAadhaar) {
+        triggerNotification("Primary traveler's Aadhaar Card is compulsory for Indian Nationals under J&K safety regulations.", "error");
+        return;
+      }
+      if (cleanAadhaar.length !== 12 || !/^\d+$/.test(cleanAadhaar)) {
+        triggerNotification("Invalid Aadhaar format. It must be a 12-digit number (e.g. 1234 5678 9012).", "error");
+        return;
+      }
+      if (guestsCount > 1) {
+        // Family booking: Validate names and genders for guestsCount - 1 extra travelers
+        for (let i = 0; i < guestsCount - 1; i++) {
+          const traveler = otherTravelers[i];
+          if (!traveler || !traveler.name || !traveler.name.trim()) {
+            triggerNotification(`Please provide the Full Name of Companion Traveler ${i + 2} in the family checklist.`, "error");
+            return;
+          }
+          if (!traveler.gender) {
+            triggerNotification(`Please specify the Gender of Companion Traveler ${i + 2}.`, "error");
+            return;
+          }
+        }
+      }
+    } else {
+      // Foreign National
+      if (!passportNumber || !passportNumber.trim()) {
+        triggerNotification("Primary traveler's Passport Number is compulsory for Foreign Nationals visiting J&K territory.", "error");
+        return;
+      }
+      if (passportNumber.trim().length < 5) {
+        triggerNotification("Please enter a valid Passport Number (must be at least 5 characters).", "error");
+        return;
+      }
+    }
+
+    // Infant Safety check
+    if (hasInfants) {
+      if (!infantDetails || !infantDetails.trim()) {
+        triggerNotification("Please let us know about the infants traveling with you in the infant details section, so we can prepare customized winter blankets & safety cribs.", "error");
+        return;
+      }
+    }
+
     if (!activeCheckoutPackage) return;
 
     setPaymentStep('CreatingOrder');
-    setPaymentLog(["Sending pre-reservation payload to Sheenora Secure Server...", "Generating custom itinerary invoice with J&K state tax breaks..."]);
+    setPaymentLog(["Sending pre-reservation payload with Border Permit credentials to Sheenora Secure Server...", "Generating custom itinerary invoice with J&K state tax breaks..."]);
     
     try {
       const orderRes = await fetch(`${getApiBaseUrl()}/api/payment/order`, {
@@ -1159,7 +1305,13 @@ export default function App() {
           guestsCount,
           travelDate,
           totalPrice: activeCheckoutPackage.price * guestsCount,
-          customRequirements
+          customRequirements,
+          nationality,
+          aadhaarNumber,
+          passportNumber,
+          hasInfants,
+          infantDetails,
+          otherTravelers: otherTravelers.slice(0, guestsCount - 1)
         })
       });
 
@@ -2207,6 +2359,164 @@ export default function App() {
                       />
                     </div>
 
+                    {/* Nationality and Personal Identification Section */}
+                    <div className="bg-[#002366]/5 p-5 rounded-2xl border border-slate-200 space-y-4">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-[#002366]/70 tracking-wider block mb-2 font-mono">Select Nationality *</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setCustomForm({ ...customForm, nationality: 'Indian' })}
+                            className={`py-2 px-3 text-xs font-bold rounded-xl border-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                              customForm.nationality === 'Indian' 
+                                ? 'border-[#002366] bg-[#001c52]/10 text-[#002366]' 
+                                : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                            }`}
+                          >
+                            <span>🇮🇳</span> Indian National
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCustomForm({ ...customForm, nationality: 'Foreign' })}
+                            className={`py-2 px-3 text-xs font-bold rounded-xl border-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                              customForm.nationality === 'Foreign' 
+                                ? 'border-[#002366] bg-[#001c52]/10 text-[#002366]' 
+                                : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                            }`}
+                          >
+                            <span>🏳️</span> Foreign National
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Dynamic fields based on nationality */}
+                      {customForm.nationality === 'Indian' ? (
+                        <div>
+                          <label className="text-[10px] uppercase font-bold text-[#002366]/80 block mb-1">Primary Traveler Aadhaar Number *</label>
+                          <input 
+                            type="text"
+                            required
+                            maxLength={14}
+                            value={customForm.aadhaarNumber}
+                            onChange={(e) => {
+                              // Auto formatting for 12 digits Aadhaar: XXXX XXXX XXXX
+                              let raw = e.target.value.replace(/\D/g, '').slice(0, 12);
+                              let parts = [];
+                              for (let i = 0; i < raw.length; i += 4) {
+                                parts.push(raw.slice(i, i + 4));
+                              }
+                              setCustomForm({ ...customForm, aadhaarNumber: parts.join(' ') });
+                            }}
+                            placeholder="1234 5678 9012"
+                            className="w-full bg-white border border-slate-250 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono tracking-wider focus:outline-none focus:border-[#F4C430]"
+                          />
+                          <p className="text-[9px] text-slate-450 mt-1">Required for secure border checks in J&K territory.</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="text-[10px] uppercase font-bold text-[#002366]/80 block mb-1">Primary Traveler Passport Number *</label>
+                          <input 
+                            type="text"
+                            required
+                            value={customForm.passportNumber}
+                            onChange={(e) => setCustomForm({ ...customForm, passportNumber: e.target.value.toUpperCase() })}
+                            placeholder="E.g., Z1234567"
+                            className="w-full bg-white border border-slate-250 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#F4C430]"
+                          />
+                          <p className="text-[9px] text-slate-450 mt-1">Required for foreign registration logs and high-altitude safety clearance.</p>
+                        </div>
+                      )}
+
+                      {/* Family validation segment */}
+                      {customForm.guestsCount > 1 && (
+                        <div className="border-t border-slate-200 pt-3 space-y-3">
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs">👨‍👩‍👦</span>
+                            <span className="text-[10px] font-bold text-[#002366] uppercase tracking-wider">Family Companion Roster</span>
+                          </div>
+                          <p className="text-[9px] text-slate-500 italic leading-snug">
+                            Only one primary traveler Aadhaar is mandatory for national safety. Please list details of other companion travelers below:
+                          </p>
+
+                          <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+                            {Array.from({ length: customForm.guestsCount - 1 }).map((_, idx) => {
+                              const companion = customForm.otherTravelers[idx] || { name: '', gender: 'Male' };
+                              return (
+                                <div key={idx} className="p-3 bg-white border border-slate-100 rounded-xl space-y-2">
+                                  <span className="text-[9px] font-bold font-mono text-orange-600 uppercase">Passenger #{idx + 2}</span>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[9px] font-bold text-slate-400 block mb-0.5">FULL NAME *</label>
+                                      <input
+                                        type="text"
+                                        required
+                                        value={companion.name}
+                                        onChange={(e) => {
+                                          const list = [...customForm.otherTravelers];
+                                          if (!list[idx]) list[idx] = { name: '', gender: 'Male' };
+                                          list[idx] = { ...list[idx], name: e.target.value };
+                                          setCustomForm({ ...customForm, otherTravelers: list });
+                                        }}
+                                        placeholder={`Guest ${idx + 2} Name`}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 flex-1 text-xs text-slate-950 focus:outline-none focus:border-[#002366]"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[9px] font-bold text-slate-400 block mb-0.5">GENDER *</label>
+                                      <select
+                                        value={companion.gender}
+                                        onChange={(e) => {
+                                          const list = [...customForm.otherTravelers];
+                                          if (!list[idx]) list[idx] = { name: '', gender: 'Male' };
+                                          list[idx] = { ...list[idx], gender: e.target.value };
+                                          setCustomForm({ ...customForm, otherTravelers: list });
+                                        }}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-950 focus:outline-none focus:border-[#002366]"
+                                      >
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                        <option value="Other">Other</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Infant specifications toggle and field */}
+                      <div className="border-t border-slate-200 pt-3">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-slate-700 select-none">
+                          <input 
+                            type="checkbox"
+                            checked={customForm.hasInfants}
+                            onChange={(e) => setCustomForm({ ...customForm, hasInfants: e.target.checked })}
+                            className="rounded text-[#002366] focus:ring-[#002366]"
+                          />
+                          <span>Traveling with infants (under 2 years)?</span>
+                        </label>
+                        
+                        {customForm.hasInfants && (
+                          <div className="mt-2 text-left bg-amber-50/50 p-2.5 rounded-lg border border-amber-200 space-y-1 animate-fade-in">
+                            <label className="text-[9px] font-bold text-amber-800 uppercase block">Please let us know infants' details:</label>
+                            <textarea
+                              rows={2}
+                              required
+                              value={customForm.infantDetails}
+                              onChange={(e) => setCustomForm({ ...customForm, infantDetails: e.target.value })}
+                              placeholder="E.g., Baby Kabir, 10 months old, needs hot milk flasks and safety cot during Srinagar houseboat stay."
+                              className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-[#002366]"
+                            />
+                            <p className="text-[8.5px] text-amber-700 leading-normal">
+                              We make sure that child safety accessories, flasks, and proper vehicle configurations are set up.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     <div>
                       <label className="text-[10px] uppercase font-bold text-[#002366]/60 tracking-wider block mb-1">Custom Leisure Requests / Hotel Preferences (optional)</label>
                       <textarea 
@@ -3196,6 +3506,164 @@ export default function App() {
                           </div>
                         </div>
 
+                        {/* Nationality and Personal Identification Section */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-[#002366]/70 tracking-wider block mb-1.5 font-mono">Select Nationality *</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setCheckoutForm({ ...checkoutForm, nationality: 'Indian' })}
+                                className={`py-2 px-3 text-xs font-bold rounded-lg border-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                  checkoutForm.nationality === 'Indian' 
+                                    ? 'border-[#002366] bg-[#001c52]/10 text-[#002366]' 
+                                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                }`}
+                              >
+                                <span>🇮🇳</span> Indian National
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCheckoutForm({ ...checkoutForm, nationality: 'Foreign' })}
+                                className={`py-2 px-3 text-xs font-bold rounded-lg border-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                  checkoutForm.nationality === 'Foreign' 
+                                    ? 'border-[#002366] bg-[#001c52]/10 text-[#002366]' 
+                                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                }`}
+                              >
+                                <span>🏳️</span> Foreign National
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Dynamic fields based on nationality */}
+                          {checkoutForm.nationality === 'Indian' ? (
+                            <div>
+                              <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Primary Traveler Aadhaar Number *</label>
+                              <input 
+                                type="text"
+                                required
+                                maxLength={14}
+                                value={checkoutForm.aadhaarNumber}
+                                onChange={(e) => {
+                                  // Auto formatting for 12 digits Aadhaar: XXXX XXXX XXXX
+                                  let raw = e.target.value.replace(/\D/g, '').slice(0, 12);
+                                  let parts = [];
+                                  for (let i = 0; i < raw.length; i += 4) {
+                                    parts.push(raw.slice(i, i + 4));
+                                  }
+                                  setCheckoutForm({ ...checkoutForm, aadhaarNumber: parts.join(' ') });
+                                }}
+                                placeholder="1234 5678 9012"
+                                className="w-full bg-white border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono tracking-wider focus:outline-none focus:border-[#F4C430]"
+                              />
+                              <p className="text-[9px] text-slate-400 mt-1">Required for local secure checkposts in Jammu & Kashmir.</p>
+                            </div>
+                          ) : (
+                            <div>
+                              <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Primary Traveler Passport Number *</label>
+                              <input 
+                                type="text"
+                                required
+                                value={checkoutForm.passportNumber}
+                                onChange={(e) => setCheckoutForm({ ...checkoutForm, passportNumber: e.target.value.toUpperCase() })}
+                                placeholder="E.g., Z1234567"
+                                className="w-full bg-white border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#F4C430]"
+                              />
+                              <p className="text-[9px] text-slate-400 mt-1">Compulsory for inner-line permits and foreign registry logs due to high-altitude border security.</p>
+                            </div>
+                          )}
+
+                          {/* Family booking section: If guestsCount > 1, show details for remaining guests */}
+                          {checkoutForm.guestsCount > 1 && (
+                            <div className="border-t border-slate-200 pt-3 space-y-3">
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs">👨‍👩‍👦</span>
+                                <span className="text-[11px] font-bold text-[#002366] uppercase tracking-wider">Family/Companion Details</span>
+                              </div>
+                              <p className="text-[9px] text-slate-500 italic leading-snug">
+                                As per J&K Tourism directives, only 1 traveler's Aadhaar/Passport is required. Please declare other companion names and genders below:
+                              </p>
+
+                              <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+                                {Array.from({ length: checkoutForm.guestsCount - 1 }).map((_, idx) => {
+                                  const companion = checkoutForm.otherTravelers[idx] || { name: '', gender: 'Male' };
+                                  return (
+                                    <div key={idx} className="p-2.5 bg-white border border-slate-100 rounded-lg space-y-2">
+                                      <span className="text-[10px] uppercase font-mono font-bold text-orange-600">Companion #{idx + 2}</span>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label className="text-[9px] font-bold text-slate-400 block mb-0.5">FULL NAME *</label>
+                                          <input
+                                            type="text"
+                                            required
+                                            value={companion.name}
+                                            onChange={(e) => {
+                                              const list = [...checkoutForm.otherTravelers];
+                                              if (!list[idx]) list[idx] = { name: '', gender: 'Male' };
+                                              list[idx] = { ...list[idx], name: e.target.value };
+                                              setCheckoutForm({ ...checkoutForm, otherTravelers: list });
+                                            }}
+                                            placeholder={`Guest ${idx + 2} Name`}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-950 focus:outline-none focus:border-[#002366]"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-[9px] font-bold text-slate-400 block mb-0.5">GENDER *</label>
+                                          <select
+                                            value={companion.gender}
+                                            onChange={(e) => {
+                                              const list = [...checkoutForm.otherTravelers];
+                                              if (!list[idx]) list[idx] = { name: '', gender: 'Male' };
+                                              list[idx] = { ...list[idx], gender: e.target.value };
+                                              setCheckoutForm({ ...checkoutForm, otherTravelers: list });
+                                            }}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-950 focus:outline-none focus:border-[#002366]"
+                                          >
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Other">Other</option>
+                                          </select>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Infant specifications panel */}
+                          <div className="border-t border-slate-200 pt-3">
+                            <label className="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-slate-705 select-none text-slate-700">
+                              <input 
+                                type="checkbox"
+                                checked={checkoutForm.hasInfants}
+                                onChange={(e) => setCheckoutForm({ ...checkoutForm, hasInfants: e.target.checked })}
+                                className="rounded text-[#002366] focus:ring-[#002366]"
+                              />
+                              <span>Traveling with infants (under 2 years)?</span>
+                            </label>
+                            
+                            {checkoutForm.hasInfants && (
+                              <div className="mt-2 text-left bg-amber-50/55 p-2.5 rounded-lg border border-amber-200 space-y-1 animate-fade-in">
+                                <label className="text-[9px] font-bold text-amber-800 uppercase block">Please let us know infants' details:</label>
+                                <textarea
+                                  rows={2}
+                                  required
+                                  value={checkoutForm.infantDetails}
+                                  onChange={(e) => setCheckoutForm({ ...checkoutForm, infantDetails: e.target.value })}
+                                  placeholder="E.g., Baby Kabir, 10 months old, needs hot milk flasks and safety cot during Srinagar houseboat stay."
+                                  className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:border-orange-500"
+                                />
+                                <p className="text-[8.5px] text-amber-700 leading-normal">
+                                  Our team provides hot flasks, room heating adjustments, and child safety accessories complimentary.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
                         {/* HIGH PRIORITY: Mandatory Indian PAN Card validation for financial audit checks in high risk J&K border territory */}
                         <div className="p-3 bg-orange-50 border border-[#F4C430] rounded-xl space-y-1.5">
                           <div className="flex justify-between items-center">
@@ -3902,6 +4370,61 @@ export default function App() {
                     <strong>{language === 'HI' ? 'कस्टम आवश्यकताएँ:' : 'Custom traveler notes:'}</strong> {searchedBooking.customRequirements}
                   </div>
                 )}
+
+                {/* Dynamic Nationality Security Logs inside search status */}
+                <div className="bg-slate-900/40 rounded-xl p-4 border border-slate-800 text-left space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#F4C430]" /> Border Permit Intelligence Log
+                    </span>
+                    <span className="text-[9px] font-mono font-bold text-orange-400 bg-orange-950/40 px-2 py-0.5 rounded border border-orange-850">Verified</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase">NATIONALITY STATUS</p>
+                      <p className="text-white font-sans font-semibold">
+                        {searchedBooking.nationality === 'Foreign' ? '🏳️ Foreign National' : '🇮🇳 Indian National'}
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase">SECURED IDENTITY PERMIT ID</p>
+                      <p className="text-white font-mono font-bold font-semibold">
+                        {searchedBooking.nationality === 'Foreign' 
+                          ? `Passport: ${searchedBooking.passportNumber || 'N/A'}` 
+                          : `Aadhaar: ${searchedBooking.aadhaarNumber || 'N/A'}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Companion travelers roster if any */}
+                  {searchedBooking.otherTravelers && searchedBooking.otherTravelers.length > 0 && (
+                    <div className="border-t border-slate-800/60 pt-3 space-y-2">
+                      <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-bold">Companion Manifest ({searchedBooking.otherTravelers.length})</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {searchedBooking.otherTravelers.map((traveler: any, index: number) => (
+                          <div key={index} className="bg-slate-950/40 p-2 rounded-lg border border-slate-900 flex justify-between items-center text-[11px]">
+                            <span className="text-white truncate max-w-[120px] font-sans font-medium">{traveler.name}</span>
+                            <span className="text-[#F4C430] text-[10px] uppercase font-mono bg-[#002366] px-1.5 py-0.5 rounded-md font-bold">{traveler.gender}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Infant Travel log */}
+                  {searchedBooking.hasInfants && (
+                    <div className="border-t border-slate-800/60 pt-3 space-y-1 bg-amber-950/15 p-2 rounded-lg border border-amber-900/30">
+                      <p className="text-[10px] font-mono text-amber-500 uppercase font-bold tracking-wider flex items-center gap-1">
+                        🍼 High-Altitude Infant Travel Care Active
+                      </p>
+                      <p className="text-slate-300 text-[11px] leading-relaxed font-sans mt-1">
+                        {searchedBooking.infantDetails || 'Infants accompanying travel log initiated.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-2 pt-2 text-[10px] text-emerald-400 font-mono">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>

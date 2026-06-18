@@ -40,6 +40,13 @@ export interface Booking {
   };
   adminNotes?: string;
   createdAt: string;
+  // Dynamic nationality and traveler breakdown details
+  nationality?: 'Indian' | 'Foreign';
+  aadhaarNumber?: string;
+  passportNumber?: string;
+  hasInfants?: boolean;
+  infantDetails?: string;
+  otherTravelers?: { name: string; gender: string }[];
 }
 
 export interface LeadEnquiry {

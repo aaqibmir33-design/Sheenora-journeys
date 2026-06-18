@@ -428,7 +428,13 @@ app.post('/api/payment/order', async (req, res) => {
     guestsCount,
     travelDate,
     totalPrice,
-    customRequirements
+    customRequirements,
+    nationality,
+    aadhaarNumber,
+    passportNumber,
+    hasInfants,
+    infantDetails,
+    otherTravelers
   } = req.body;
 
   if (!customerName || !customerEmail || !customerPhone || !panCard) {
@@ -459,7 +465,7 @@ app.post('/api/payment/order', async (req, res) => {
           amount: amountInPaise,
           currency: 'INR',
           receipt: bookingId
-        })
+         })
       });
 
       if (!response.ok) {
@@ -492,7 +498,13 @@ app.post('/api/payment/order', async (req, res) => {
         razorpayOrderId: orderData.id,
         customRequirements,
         leadStatus: 'Local Captured',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        nationality,
+        aadhaarNumber,
+        passportNumber,
+        hasInfants: !!hasInfants,
+        infantDetails,
+        otherTravelers
       };
 
       bookings.push(newBooking);
@@ -531,7 +543,13 @@ app.post('/api/payment/order', async (req, res) => {
     razorpayOrderId: mockOrderId,
     customRequirements,
     leadStatus: 'Local Captured',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    nationality,
+    aadhaarNumber,
+    passportNumber,
+    hasInfants: !!hasInfants,
+    infantDetails,
+    otherTravelers
   };
 
   bookings.push(newBooking);
@@ -611,7 +629,13 @@ app.post('/api/custom-trip', async (req, res) => {
     travelDate,
     guestsCount,
     customRequirements,
-    estimatedBudget
+    estimatedBudget,
+    nationality,
+    aadhaarNumber,
+    passportNumber,
+    hasInfants,
+    infantDetails,
+    otherTravelers
   } = req.body;
 
   if (!customerName || !customerEmail || !customerPhone) {
@@ -635,7 +659,13 @@ app.post('/api/custom-trip', async (req, res) => {
     paymentStatus: 'Pending', // pending final custom quotes
     customRequirements,
     leadStatus: 'Local Captured',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    nationality,
+    aadhaarNumber,
+    passportNumber,
+    hasInfants: !!hasInfants,
+    infantDetails,
+    otherTravelers
   };
 
   // Mark Lead Captured
@@ -900,7 +930,13 @@ app.get('/api/bookings-lookup/:id', (req, res) => {
       totalPrice: booking.totalPrice,
       paymentStatus: booking.paymentStatus,
       createdAt: booking.createdAt,
-      customRequirements: booking.customRequirements
+      customRequirements: booking.customRequirements,
+      nationality: booking.nationality,
+      aadhaarNumber: booking.aadhaarNumber,
+      passportNumber: booking.passportNumber,
+      hasInfants: booking.hasInfants,
+      infantDetails: booking.infantDetails,
+      otherTravelers: booking.otherTravelers
     },
     assignedGuide
   });

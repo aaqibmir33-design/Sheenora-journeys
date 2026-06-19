@@ -54,7 +54,9 @@ import {
   Mail,
   Send,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Crown,
+  Trophy
 } from 'lucide-react';
 import { TourPackage, Booking, Customer, GalleryItem } from './types.js';
 // @ts-ignore
@@ -497,7 +499,7 @@ export default function App() {
   const [customForm, setCustomForm] = useState({
     destinations: [] as string[],
     travelDate: '',
-    guestsCount: 2,
+    guestsCount: 1,
     customRequirements: '',
     estimatedBudget: 35000,
     customerName: '',
@@ -522,7 +524,7 @@ export default function App() {
     customerPhone: '',
     panCard: '',
     travelDate: '',
-    guestsCount: 2,
+    guestsCount: 1,
     customRequirements: '',
     nationality: 'Indian' as 'Indian' | 'Foreign',
     aadhaarNumber: '',
@@ -1157,7 +1159,7 @@ export default function App() {
           customerName,
           customerEmail,
           customerPhone,
-          panCard,
+          panCard: nationality === 'Indian' ? (panCard || '') : `EXEMPT-PASSPORT-${passportNumber}`,
           travelDate,
           guestsCount,
           customRequirements: `Destinations: ${destinations.join(', ')}. Details: ${customRequirements}`,
@@ -1194,7 +1196,7 @@ export default function App() {
       customerPhone: '',
       panCard: '',
       travelDate: '',
-      guestsCount: 2,
+      guestsCount: 1,
       customRequirements: '',
       nationality: 'Indian',
       aadhaarNumber: '',
@@ -1230,15 +1232,17 @@ export default function App() {
       return;
     }
 
-    // Indian PAN validation regex: 5 Letters, 4 Digits, 1 Letter
-    const panRegex = /[A-Z]{5}[0-9]{4}[A-Z]{1}/i;
-    if (!panCard) {
-      triggerNotification("PAN Card is required due to international travel & high-value tourism regulations in J&K.", "error");
-      return;
-    }
-    if (!panRegex.test(panCard.trim())) {
-      triggerNotification("Invalid Indian PAN Card format. Must correspond to standard pattern (e.g., ABCDE1234F).", "error");
-      return;
+    // Indian PAN validation: Only required for Indian nationals
+    if (nationality === 'Indian') {
+      const panRegex = /[A-Z]{5}[0-9]{4}[A-Z]{1}/i;
+      if (!panCard) {
+        triggerNotification("PAN Card is required due to international travel & high-value tourism regulations in J&K.", "error");
+        return;
+      }
+      if (!panRegex.test(panCard.trim())) {
+        triggerNotification("Invalid Indian PAN Card format. Must correspond to standard pattern (e.g., ABCDE1234F).", "error");
+        return;
+      }
     }
 
     // National Identity Regulatory Checks for J&K Border Security Protocol
@@ -1301,7 +1305,7 @@ export default function App() {
           customerName,
           customerEmail,
           customerPhone,
-          panCard: panCard.toUpperCase().trim(),
+          panCard: (nationality === 'Indian' ? panCard : `EXEMPT-PASSPORT-${passportNumber}`).toUpperCase().trim(),
           guestsCount,
           travelDate,
           totalPrice: activeCheckoutPackage.price * guestsCount,
@@ -1503,13 +1507,33 @@ export default function App() {
     });
   };
 
-  // Filter & Search results
+  // Filter & Search results (Promoting the dynamic Top 3 Best Packages globally to first place)
+  const topThreePackageIds = React.useMemo(() => {
+    return [...packages]
+      .sort((a, b) => {
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        if (b.reviewsCount !== a.reviewsCount) return b.reviewsCount - a.reviewsCount;
+        return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+      })
+      .slice(0, 3)
+      .map(p => p.id);
+  }, [packages]);
+
   const filteredPackages = packages.filter(p => {
     const matchesCat = selectedCategory === 'All' || p.category === selectedCategory;
     const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           p.seoDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           p.highlights.some(h => h.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCat && matchesSearch;
+  }).sort((a, b) => {
+    const isATop3 = topThreePackageIds.includes(a.id);
+    const isBTop3 = topThreePackageIds.includes(b.id);
+    if (isATop3 && !isBTop3) return -1;
+    if (!isATop3 && isBTop3) return 1;
+    // Secondary sort
+    if (b.rating !== a.rating) return b.rating - a.rating;
+    if (b.reviewsCount !== a.reviewsCount) return b.reviewsCount - a.reviewsCount;
+    return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
   });
 
   return (
@@ -2317,8 +2341,19 @@ export default function App() {
                           min={1} 
                           max={30}
                           value={customForm.guestsCount}
-                          onChange={(e) => setCustomForm({ ...customForm, guestsCount: Number(e.target.value) })}
-                          className="w-full border-b-2 border-slate-200 focus:border-[#F4C430] py-2 focus:outline-none text-sm transition-colors"
+                          onChange={(e) => {
+                            const newCount = Number(e.target.value);
+                            const list = [...customForm.otherTravelers];
+                            while (list.length < newCount - 1) {
+                              list.push({ name: '', gender: 'Male' });
+                            }
+                            setCustomForm({ 
+                              ...customForm, 
+                              guestsCount: newCount,
+                              otherTravelers: list.slice(0, newCount - 1)
+                            });
+                          }}
+                          className="w-full border-b-2 border-slate-200 focus:border-[#F4C430] py-2 focus:outline-none text-sm transition-colors font-bold text-[#002366]"
                         />
                       </div>
                     </div>
@@ -2620,13 +2655,19 @@ export default function App() {
                         setCustomForm({
                           destinations: [],
                           travelDate: '',
-                          guestsCount: 2,
+                          guestsCount: 1,
                           customRequirements: '',
                           estimatedBudget: 35000,
                           customerName: '',
                           customerEmail: '',
                           customerPhone: '',
                           panCard: '',
+                          nationality: 'Indian',
+                          aadhaarNumber: '',
+                          passportNumber: '',
+                          hasInfants: false,
+                          infantDetails: '',
+                          otherTravelers: []
                         });
                       }}
                       className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-xl font-bold font-mono text-xs uppercase transition-colors"
@@ -3172,6 +3213,9 @@ export default function App() {
             ) : (
               filteredPackages.map((pack) => {
                 const isExpanded = expandedPackageId === pack.id;
+                const isTop3 = topThreePackageIds.includes(pack.id);
+                const rankIndex = topThreePackageIds.indexOf(pack.id) + 1;
+
                 return (
                   <motion.article 
                     layout
@@ -3180,7 +3224,11 @@ export default function App() {
                     transition={{ duration: 0.4 }}
                     key={pack.id} 
                     id={`package-${pack.id}`}
-                    className="group bg-white rounded-2xl overflow-hidden border border-slate-200/80 shadow-md hover:shadow-2xl hover:-translate-y-2 hover:border-amber-400/30 transition-all duration-500 relative flex flex-col justify-between"
+                    className={`group bg-white rounded-2xl overflow-hidden transition-all duration-500 relative flex flex-col justify-between ${
+                      isTop3 
+                        ? 'border-2 border-[#F4C430] hover:border-[#F4C430] shadow-[0_0_22px_rgba(244,196,48,0.22)] hover:shadow-[0_0_35px_rgba(244,196,48,0.35)] ring-4 ring-[#F4C430]/10' 
+                        : 'border border-slate-200/80 shadow-md hover:shadow-2xl hover:border-amber-400/30'
+                    } hover:-translate-y-2`}
                   >
                     {/* Image section with relative Tag */}
                     <div className="relative h-60 overflow-hidden">
@@ -3191,8 +3239,16 @@ export default function App() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
                       
+                      {/* Top 3 Choice Premium Badge */}
+                      {isTop3 && (
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#002366] to-[#001c52] text-[#F4C430] px-3.5 py-1.5 rounded-full text-[9px] font-bold tracking-widest uppercase border border-[#F4C430] font-mono shadow-xl flex items-center gap-1.5 z-10">
+                          <Crown className="w-3.5 h-3.5 text-[#F4C430] animate-bounce shrink-0" />
+                          <span>BEST CHOICE #{rankIndex}</span>
+                        </div>
+                      )}
+
                       {/* Tag floating top left */}
-                      <span className="absolute top-4 left-4 bg-white text-[#002366] px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase border border-[#F4C430] font-mono shadow-sm">
+                      <span className="absolute top-4 left-4 bg-white text-[#002366] px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase border border-[#F4C430]/40 font-mono shadow-sm">
                         {pack.category}
                       </span>
 
@@ -3500,8 +3556,19 @@ export default function App() {
                               min={1} 
                               max={20}
                               value={checkoutForm.guestsCount}
-                              onChange={(e) => setCheckoutForm({ ...checkoutForm, guestsCount: Number(e.target.value) })}
-                              className="w-full border-b border-slate-200 py-1.5 focus:outline-none text-xs"
+                              onChange={(e) => {
+                                const newCount = Number(e.target.value);
+                                const list = [...checkoutForm.otherTravelers];
+                                while (list.length < newCount - 1) {
+                                  list.push({ name: '', gender: 'Male' });
+                                }
+                                setCheckoutForm({ 
+                                  ...checkoutForm, 
+                                  guestsCount: newCount,
+                                  otherTravelers: list.slice(0, newCount - 1)
+                                });
+                              }}
+                              className="w-full border-b border-slate-200 py-1.5 focus:outline-none text-xs font-bold text-[#002366]"
                             />
                           </div>
                         </div>
@@ -3665,26 +3732,28 @@ export default function App() {
                         </div>
 
                         {/* HIGH PRIORITY: Mandatory Indian PAN Card validation for financial audit checks in high risk J&K border territory */}
-                        <div className="p-3 bg-orange-50 border border-[#F4C430] rounded-xl space-y-1.5">
-                          <div className="flex justify-between items-center">
-                            <label className="text-[10px] uppercase font-bold text-[#002366] flex items-center gap-1 font-mono">
-                              <ShieldCheck className="w-3.5 h-3.5 text-[#F4C430]" /> Mandatory Indian PAN Card *
-                            </label>
-                            <span className="text-[9px] font-mono text-slate-500">Regulated Tourism Act</span>
+                        {checkoutForm.nationality === 'Indian' && (
+                          <div className="p-3 bg-orange-50 border border-[#F4C430] rounded-xl space-y-1.5 animate-fade-in">
+                            <div className="flex justify-between items-center">
+                              <label className="text-[10px] uppercase font-bold text-[#002366] flex items-center gap-1 font-mono">
+                                <ShieldCheck className="w-3.5 h-3.5 text-[#F4C430]" /> Mandatory Indian PAN Card *
+                              </label>
+                              <span className="text-[9px] font-mono text-slate-500">Regulated Tourism Act</span>
+                            </div>
+                            <input 
+                              type="text" 
+                              required
+                              maxLength={10}
+                              value={checkoutForm.panCard}
+                              onChange={(e) => setCheckoutForm({ ...checkoutForm, panCard: e.target.value.toUpperCase() })}
+                              placeholder="ABCDE1234F"
+                              className="w-full bg-white border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-900 font-bold uppercase tracking-wider font-mono focus:outline-none focus:border-[#F4C430]"
+                            />
+                            <p className="text-[8.5px] text-slate-550 leading-relaxed font-serif">
+                              Indian Income Tax clause requires tour booking operators to log customer PAN details. Format: 5 alphabet characters followed by 4 digits and 1 alphabet.
+                            </p>
                           </div>
-                          <input 
-                            type="text" 
-                            required
-                            maxLength={10}
-                            value={checkoutForm.panCard}
-                            onChange={(e) => setCheckoutForm({ ...checkoutForm, panCard: e.target.value.toUpperCase() })}
-                            placeholder="ABCDE1234F"
-                            className="w-full bg-white border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-900 font-bold uppercase tracking-wider font-mono focus:outline-none focus:border-[#F4C430]"
-                          />
-                          <p className="text-[8.5px] text-slate-550 leading-relaxed font-serif">
-                            Indian Income Tax clause requires tour booking operators to log customer PAN details. Format: 5 alphabet characters followed by 4 digits and 1 alphabet.
-                          </p>
-                        </div>
+                        )}
                       </div>
 
                       {/* Display final estimated sum */}
